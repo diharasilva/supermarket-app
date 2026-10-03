@@ -1,16 +1,16 @@
 import streamlit as st
 import pandas as pd
-import plotly.express as px
+import plotly.graph_objects as go
 
-st.set_page_config(page_title="Supermarket System & Locator", page_icon="🛒", layout="wide")
+st.set_page_config(page_title="Supermarket System & Route Locator", page_icon="🛒", layout="wide")
 
-st.title("🛒 Supermarket Inventory & Interactive Indoor Map")
-st.write("Manage inventory, track low stock, and navigate supermarket aisles interactively.")
+st.title("🛒 Supermarket Inventory & Smart Indoor Route Locator")
+st.write("Manage inventory, track stock, and find the shortest shopping route through aisles.")
 
-# Sidebar Navigation
-menu = st.sidebar.selectbox("Navigation", ["View & Search Inventory", "Add New Product", "Interactive Indoor Map & Racks", "Low Stock & Alerts"])
+# Navigation
+menu = st.sidebar.selectbox("Navigation", ["View & Search Inventory", "Add New Product", "Smart Shopping Route (Shortest Path)", "Low Stock & Alerts"])
 
-# Session State for Inventory & Layout
+# Session State for Inventory
 if 'df' not in st.session_state:
     st.session_state.df = pd.DataFrame({
         "Product Name": ["Anchor Milk Powder 400g", "Munchee Lemon Puff", "Coca Cola 1.5L", "Rio Ice Cream", "Sunlight Soap"],
@@ -18,8 +18,8 @@ if 'df' not in st.session_state:
         "Aisle Location": ["Aisle 1", "Aisle 2", "Aisle 3", "Aisle 4", "Aisle 5"],
         "Stock": [45, 120, 30, 15, 60],
         "Price (LKR)": [1250.00, 180.00, 450.00, 600.00, 140.00],
-        "X_Coord": [2, 4, 6, 8, 10],  # Floor plan grid X position
-        "Y_Coord": [5, 5, 5, 5, 5]   # Floor plan grid Y position
+        "X_Coord": [2, 4, 6, 8, 10],  # Floor plan grid X
+        "Y_Coord": [5, 2, 8, 3, 7]   # Floor plan grid Y
     })
 
 if menu == "View & Search Inventory":
@@ -60,30 +60,74 @@ elif menu == "Add New Product":
             st.session_state.df = pd.concat([st.session_state.df, new_row], ignore_index=True)
             st.success(f"Successfully added **{prod_name}** to the inventory and map!")
 
-elif menu == "Interactive Indoor Map & Racks":
-    st.subheader("🗺️ Supermarket 2D Floor Plan & Aisle Explorer")
-    st.write("Click or hover over the rack points below to see what items are stocked in each aisle section.")
+elif menu == "Smart Shopping Route (Shortest Path)":
+    st.subheader("🛣️ Optimized Indoor Shopping Route (Nearest Neighbor Path)")
+    st.write("Select the items you want to buy, and the system will plot the **shortest walking path** through the aisles!")
     
-    # Plotly Scatter plot acting as an interactive floor map
-    fig = px.scatter(
-        st.session_state.df,
-        x="X_Coord",
-        y="Y_Coord",
-        text="Aisle Location",
-        color="Category / Section",
-        hover_data=["Product Name", "Stock", "Price (LKR)"],
-        size=[30]*len(st.session_state.df),
-        title="Supermarket Floor Layout (Aisles & Racks)"
-    )
-    fig.update_traces(textposition='top center')
-    fig.update_layout(xaxis_title="Store Width (meters)", yaxis_title="Store Length (meters)", height=500)
+    selected_items = st.multiselect("Select items for your Shopping List:", st.session_state.df["Product Name"].tolist())
     
-    st.plotly_chart(fig, use_container_width=True)
-    
-    selected_aisle = st.selectbox("Select Aisle to view details:", st.session_state.df['Aisle Location'].unique())
-    aisle_items = st.session_state.df[st.session_state.df['Aisle Location'] == selected_aisle]
-    st.info(f"Products available in **{selected_aisle}**:")
-    st.dataframe(aisle_items, use_container_width=True)
+    if selected_items:
+        # Filter selected items
+        shopping_df = st.session_state.df[st.session_state.df["Product Name"].isin(selected_items)].copy()
+        
+        # Start at Entrance (0,0)
+        route_x = [0]
+        route_y = [0]
+        route_labels = ["Entrance 🚪"]
+        
+        # Sort items by coordinate distance to simulate shortest path (Greedy Route Optimization)
+        unvisited = shopping_df.to_dict('records')
+        curr_x, curr_y = 0, 0
+        
+        while unvisited:
+            # Find nearest item
+            nearest = min(unvisited, key=lambda p: ((p['X_Coord']-curr_x)**2 + (p['Y_Coord']-curr_y)**2)**0.5)
+            route_x.append(nearest['X_Coord'])
+            route_y.append(nearest['Y_Coord'])
+            route_labels.append(f"{nearest['Product Name']} ({nearest['Aisle Location']})")
+            curr_x, curr_y = nearest['X_Coord'], nearest['Y_Coord']
+            unvisited.remove(nearest)
+            
+        # Add Cashier / Exit (12, 10)
+        route_x.append(12)
+        route_y.append(10)
+        route_labels.append("Billing & Exit 🛒")
+        
+        # Plot Route using Plotly
+        fig = go.Figure()
+        
+        # Add Racks Background
+        fig.add_trace(go.Scatter(
+            x=st.session_state.df['X_Coord'], y=st.session_state.df['Y_Coord'],
+            mode='markers+text',
+            marker=dict(size=12, color='lightgrey'),
+            text=st.session_state.df['Aisle Location'],
+            textposition="top center",
+            name="All Supermarket Racks"
+        ))
+        
+        # Add Shortest Route Path Line
+        fig.add_trace(go.Scatter(
+            x=route_x, y=route_y,
+            mode='lines+markers+text',
+            line=dict(color='red', width=3, dash='dash'),
+            marker=dict(size=16, color='blue'),
+            text=route_labels,
+            textposition="bottom center",
+            name="Shortest Route Path"
+        ))
+        
+        fig.update_layout(
+            title="Optimized Walking Path for Shopping List",
+            xaxis_title="Store Width (meters)",
+            yaxis_title="Store Length (meters)",
+            height=550
+        )
+        
+        st.plotly_chart(fig, use_container_width=True)
+        st.success("🧭 **Route Step-by-Step Order:** " + " ➡️ ".join(route_labels))
+    else:
+        st.info("Please select at least 1 item from the multiselect box above to generate your optimal route.")
 
 elif menu == "Low Stock & Alerts":
     st.subheader("⚠️ Stock Alerts & Management")
