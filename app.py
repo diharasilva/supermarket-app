@@ -20,13 +20,39 @@ components.html(pwa_header, height=0)
 # 2. App Configuration
 st.set_page_config(page_title="3D Supermarket Navigator", page_icon="🛒", layout="wide")
 
-# 3. Initial Inventory State (Sample Data)
+# 3. Initial Inventory State (Expanded Sample Data for Testing)
 if 'inventory' not in st.session_state:
     st.session_state.inventory = pd.DataFrame({
-        "Item Name": ["Milk (කිරි)", "Bread (පාන්)", "Rice (හාල්)", "Apples (ඇපල්)", "Paracetamol (පැරසිටමෝල්)"],
-        "Section": ["Grocery", "Bakery", "Grocery", "Grocery", "Pharmacy"],
-        "Stock Count": [12, 3, 45, 8, 2], # 3 and 2 are low stock items (< 5)
-        "Price (LKR)": [350.0, 220.0, 3200.0, 600.0, 50.0]
+        "Item Name": [
+            "Fresh Milk 1L (එළකිරි)", 
+            "White Bread (පාන්)", 
+            "Samba Rice 5kg (සම්බා හාල්)", 
+            "Red Apples 1kg (ඇපල්)", 
+            "Paracetamol 500mg (පැරසිටමෝල්)",
+            "Cheddar Cheese 200g (චීස්)",
+            "Chocolate Cake 500g (කේක්)",
+            "Toothpaste 100g (දන්තාලේප)",
+            "Yogurt Cup (යෝගට්)",
+            "Vitamin C Tablets (විටමින් C)",
+            "Sugar 1kg (සීනි)",
+            "Tea Bags 100s (තේ කොළ)"
+        ],
+        "Section": [
+            "Grocery", 
+            "Bakery", 
+            "Grocery", 
+            "Grocery", 
+            "Pharmacy",
+            "Grocery",
+            "Bakery",
+            "Pharmacy",
+            "Grocery",
+            "Pharmacy",
+            "Grocery",
+            "Grocery"
+        ],
+        "Stock Count": [3, 2, 50, 15, 4, 1, 8, 25, 12, 2, 40, 18], # 3, 2, 4, 1, 2 are low stock (< 5)
+        "Price (LKR)": [480.0, 190.0, 1450.0, 1200.0, 50.0, 950.0, 850.0, 260.0, 80.0, 350.0, 240.0, 650.0]
     })
 
 # 4. Sidebar Controls & Role Access
@@ -123,10 +149,20 @@ else:
     st.markdown(f"### 📍 දැනට නරඹන්නේ: {selected_section}")
     
     if find_path_btn:
-        st.success(f"🚀 **{item_to_find}** වෙත ළඟ වීමට කෙටිම මාර්ගය: ප්‍රධාන පිවිසුමේ සිට කෙළින්ම ගොස් වමට හැරෙන්න.")
+        st.success(f"🚀 **{item_to_find}** වෙත ළඟ වීමට කෙටිම මාර්ගය: ප්‍රධාන පිවිසුමේ සිට කෙළින්ම ගොස් අදාළ {selected_section} අංශයට පිවිසෙන්න.")
     
     st.markdown("#### 📋 පවතින භාණ්ඩ ලැයිස්තුව:")
-    st.table(st.session_state.inventory[["Item Name", "Section", "Price (LKR)"]])
+    
+    if selected_section == "Grocery Section":
+        filtered_df = st.session_state.inventory[st.session_state.inventory["Section"] == "Grocery"]
+    elif selected_section == "Bakery Items":
+        filtered_df = st.session_state.inventory[st.session_state.inventory["Section"] == "Bakery"]
+    elif selected_section == "Pharmacy & Health":
+        filtered_df = st.session_state.inventory[st.session_state.inventory["Section"] == "Pharmacy"]
+    else:
+        filtered_df = st.session_state.inventory
+        
+    st.table(filtered_df[["Item Name", "Section", "Price (LKR)"]])
 
 # 7. Map Placeholder
 st.markdown("---")
