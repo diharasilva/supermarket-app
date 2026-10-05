@@ -51,7 +51,7 @@ if 'inventory' not in st.session_state:
             "Grocery",
             "Grocery"
         ],
-        "Stock Count": [3, 2, 50, 15, 4, 1, 8, 25, 12, 2, 40, 18], # 3, 2, 4, 1, 2 are low stock (< 5)
+        "Stock Count": [3, 2, 50, 15, 4, 1, 8, 25, 12, 2, 40, 18],
         "Price (LKR)": [480.0, 190.0, 1450.0, 1200.0, 50.0, 950.0, 850.0, 260.0, 80.0, 350.0, 240.0, 650.0]
     })
 
@@ -121,18 +121,17 @@ if user_role == "Store Owner (ගබඩා හිමියා)":
                 else:
                     st.error("කරුණාකර භාණ්ඩයේ නම ඇතුළත් කරන්න.")
         
-        # Section 2: Inventory Management Table
+        # Section 2: Inventory Management Table (Fixed styling)
         st.markdown("---")
         st.markdown("### 📦 2. වත්මන් තොග වාර්තාව සහ පාලනය (Inventory Management)")
         
-        # Highlight logic for Low Stock
-        def style_low_stock(val):
-            if val < 5:
-                return 'background-color: #ffcccc; color: red; font-weight: bold;'
-            return ''
+        def highlight_low_stock(row):
+            if row['Stock Count'] < 5:
+                return ['background-color: #ffcccc; color: red; font-weight: bold;'] * len(row)
+            return [''] * len(row)
         
         st.dataframe(
-            st.session_state.inventory.style.applymap(style_low_stock, subset=['Stock Count']),
+            st.session_state.inventory.style.apply(highlight_low_stock, axis=1),
             use_container_width=True
         )
 
