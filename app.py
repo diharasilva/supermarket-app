@@ -55,6 +55,10 @@ if 'inventory' not in st.session_state:
         "Price (LKR)": [480.0, 190.0, 1450.0, 1200.0, 50.0, 950.0, 850.0, 260.0, 80.0, 350.0, 240.0, 650.0]
     })
 
+# Initialize Cart State
+if 'cart' not in st.session_state:
+    st.session_state.cart = []
+
 # 4. Sidebar Controls & Role Access
 st.sidebar.header("🔐 පරිශීලක ප්‍රවේශය (Access Control)")
 user_role = st.sidebar.radio("ඔබ කවුද?", ["Customer (පාරිභෝගිකයා)", "Store Owner (ගබඩා හිමියා)"])
@@ -69,7 +73,7 @@ if user_role == "Store Owner (ගබඩා හිමියා)":
     elif owner_password != "":
         st.sidebar.error("❌ වැරදි මුරපදයකි!")
 
-st.title("🛒 3D Supermarket Indoor Navigator")
+st.title("🛒 3D Supermarket Indoor Navigator & Online Store")
 
 # 5. Store Owner Interface
 if user_role == "Store Owner (ගබඩා හිමියා)":
@@ -90,7 +94,6 @@ if user_role == "Store Owner (ගබඩා හිමියා)":
         col2.metric("අඩු තොග සහිත භාණ්ඩ (Low Stock Items)", low_stock_count, delta_color="inverse")
         col3.metric("පද්ධති තත්ත්වය (System Status)", "Active")
         
-        # Low Stock Alert Banner
         if low_stock_count > 0:
             st.warning(f"⚠️ **අනතුරු ඇඟවීමයි:** තොග ප්‍රමාණය 5ට වඩා අඩු භාණ්ඩ {low_stock_count}ක් පවතී. කරුණාකර තොග නැවත පිරවීමට කටයුතු කරන්න!")
         
@@ -121,7 +124,7 @@ if user_role == "Store Owner (ගබඩා හිමියා)":
                 else:
                     st.error("කරුණාකර භාණ්ඩයේ නම ඇතුළත් කරන්න.")
         
-        # Section 2: Inventory Management Table (Fixed styling)
+        # Section 2: Inventory Management Table
         st.markdown("---")
         st.markdown("### 📦 2. වත්මන් තොග වාර්තාව සහ පාලනය (Inventory Management)")
         
@@ -135,7 +138,7 @@ if user_role == "Store Owner (ගබඩා හිමියා)":
             use_container_width=True
         )
 
-# 6. Customer View
+# 6. Customer View & Online Ordering + Free Delivery Checker
 else:
     st.sidebar.markdown("---")
     st.sidebar.header("📍 Navigation & Controls")
@@ -150,8 +153,7 @@ else:
     if find_path_btn:
         st.success(f"🚀 **{item_to_find}** වෙත ළඟ වීමට කෙටිම මාර්ගය: ප්‍රධාන පිවිසුමේ සිට කෙළින්ම ගොස් අදාළ {selected_section} අංශයට පිවිසෙන්න.")
     
-    st.markdown("#### 📋 පවතින භාණ්ඩ ලැයිස්තුව:")
-    
+    # Filtering items by section
     if selected_section == "Grocery Section":
         filtered_df = st.session_state.inventory[st.session_state.inventory["Section"] == "Grocery"]
     elif selected_section == "Bakery Items":
@@ -161,6 +163,54 @@ else:
     else:
         filtered_df = st.session_state.inventory
         
+    st.markdown("#### 📋 පවතින භාණ්ඩ සහ Online ඇණවුම් කිරීම (Online Order & Cart)")
+    
+    # Allow customer to select an item to add to cart
+    col_c1, col_c2 = st.columns([2, 1])
+    with col_c1:
+        selected_item_to_buy = st.selectbox("කරත්තයට එකතු කිරීමට භාණ්ඩයක් තෝරන්න:", filtered_df["Item Name"].tolist())
+    with col_c2:
+        qty = st.number_input("ප්‍රමාණය", min_value=1, value=1, step=1)
+    
+    if st.button("🛒 කරත්තයට එකතු කරන්න (Add to Cart)"):
+        item_row = st.session_state.inventory[st.session_state.inventory["Item Name"] == selected_item_to_buy].iloc[0]
+        price = item_row["Price (LKR)"]
+        st.session_state.cart.append({"Item": selected_item_to_buy, "Qty": qty, "Price": price, "Total": price * qty})
+        st.success(f"✅ '{selected_item_to_buy}' කරත්තයට එකතු කරන ලදී!")
+
+    # Display Cart & Checkout with Free Delivery Check
+    if len(st.session_state.cart) > 0:
+        st.markdown("---")
+        st.markdown("### 🛍️ ඔබේ ඇණවුම් කරත්තය (Shopping Cart)")
+        cart_df = pd.DataFrame(st.session_state.cart)
+        st.table(cart_df)
+        
+        total_bill = cart_df["Total"].sum()
+        st.markdown(f"#### 💰 **මුළු එකතුව (Total Amount): LKR {total_bill:.2f}**")
+        
+        st.markdown("#### 🚚 Delivery සහ 3km නොමිලේ බෙදාහැරීමේ පරීක්ෂාව (Free Delivery Checker)")
+        customer_distance = st.number_input("සුපිරි වෙළඳපොළේ සිට ඔබේ නිවසට ඇති දුර (Kilometers):", min_value=0.0, value=2.0, step=0.5)
+        
+        if customer_distance <= 3.0:
+            st.success("🎉 සුබ පැතුම්! ඔබ සාප්පුවේ සිට කිලෝමීටර් 3ක අරයක් තුළ (Radius) සිටින නිසා **නොමිලේ බෙදාහැරීම (Free Delivery)** හිමි වේ!")
+            final_delivery_fee = 0.0
+        else:
+            extra_km = customer_distance - 3.0
+            delivery_fee = 150.0 + (extra_km * 50.0) # Example delivery calculation beyond 3km
+            st.warning(f"⚠️ ඔබ කිලෝමීටර් 3 සීමාවෙන් ඔබ්බෙහි සිටී (දුර: {customer_distance} km). බෙදාහැරීමේ ගාස්තුව: LKR {delivery_fee:.2f}")
+            final_delivery_fee = delivery_fee
+            
+        grand_total = total_bill + final_delivery_fee
+        st.info(ක්ෂණික ගෙවීම් සාරාංශය: භාණ්ඩවල මිල = LKR {total_bill:.2f} | ඩෙලිවරි ගාස්තුව = LKR {final_delivery_fee:.2f} | **මුළු ගෙවිය යුතු මුදල = LKR {grand_total:.2f}**)
+        
+        if st.button("✅ ඇණවුම තහවුරු කරන්න (Place Order)"):
+            st.balloons()
+            st.success("🎉 ඔබේ ඇණවුම සාර්ථකව යොමු කරන ලදී! ගබඩා හිමියා විසින් එය සූදානම් කරමින් පවතී.")
+            st.session_state.cart = [] # Clear cart after order
+    else:
+        st.info("🛒 ඔබේ කරත්තය හිස්ය. ඉහතින් භාණ්ඩ තෝරා කරත්තයට එකතු කරගන්න.")
+
+    st.markdown("#### 📋 පවතින භාණ්ඩ ලැයිස්තුව:")
     st.table(filtered_df[["Item Name", "Section", "Price (LKR)"]])
 
 # 7. Map Placeholder
