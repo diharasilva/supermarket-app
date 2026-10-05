@@ -1,6 +1,7 @@
 import streamlit as st
 import streamlit.components.v1 as components
 import pandas as pd
+import math
 
 # 1. PWA Setup
 pwa_header = """
@@ -20,7 +21,7 @@ components.html(pwa_header, height=0)
 # 2. App Configuration
 st.set_page_config(page_title="3D Supermarket Navigator", page_icon="🛒", layout="wide")
 
-# 3. Initial Inventory State (Expanded Sample Data for Testing)
+# 3. Initial Inventory State (Sample Data)
 if 'inventory' not in st.session_state:
     st.session_state.inventory = pd.DataFrame({
         "Item Name": [
@@ -29,33 +30,13 @@ if 'inventory' not in st.session_state:
             "Samba Rice 5kg (සම්බා හාල්)", 
             "Red Apples 1kg (ඇපල්)", 
             "Paracetamol 500mg (පැරසිටමෝල්)",
-            "Cheddar Cheese 200g (චීස්)",
-            "Chocolate Cake 500g (කේක්)",
-            "Toothpaste 100g (දන්තාලේප)",
-            "Yogurt Cup (යෝගට්)",
-            "Vitamin C Tablets (විටමින් C)",
-            "Sugar 1kg (සීනි)",
-            "Tea Bags 100s (තේ කොළ)"
+            "Cheddar Cheese 200g (චීස්)"
         ],
-        "Section": [
-            "Grocery", 
-            "Bakery", 
-            "Grocery", 
-            "Grocery", 
-            "Pharmacy",
-            "Grocery",
-            "Bakery",
-            "Pharmacy",
-            "Grocery",
-            "Pharmacy",
-            "Grocery",
-            "Grocery"
-        ],
-        "Stock Count": [3, 2, 50, 15, 4, 1, 8, 25, 12, 2, 40, 18],
-        "Price (LKR)": [480.0, 190.0, 1450.0, 1200.0, 50.0, 950.0, 850.0, 260.0, 80.0, 350.0, 240.0, 650.0]
+        "Section": ["Grocery", "Bakery", "Grocery", "Grocery", "Pharmacy", "Grocery"],
+        "Stock Count": [3, 2, 50, 15, 4, 1],
+        "Price (LKR)": [480.0, 190.0, 1450.0, 1200.0, 50.0, 950.0]
     })
 
-# Initialize Cart State
 if 'cart' not in st.session_state:
     st.session_state.cart = []
 
@@ -73,7 +54,7 @@ if user_role == "Store Owner (ගබඩා හිමියා)":
     elif owner_password != "":
         st.sidebar.error("❌ වැරදි මුරපදයකි!")
 
-st.title("🛒 3D Supermarket Indoor Navigator & Online Store")
+st.title("🛒 3D Supermarket Indoor Navigator & GPS Delivery")
 
 # 5. Store Owner Interface
 if user_role == "Store Owner (ගබඩා හිමියා)":
@@ -83,77 +64,41 @@ if user_role == "Store Owner (ගබඩා හිමියා)":
     else:
         st.markdown("## 🛠️ Store Owner Dashboard")
         st.markdown("---")
-        
-        # Summary Metrics
         total_items = len(st.session_state.inventory)
-        low_stock_df = st.session_state.inventory[st.session_state.inventory["Stock Count"] < 5]
-        low_stock_count = len(low_stock_df)
+        low_stock_count = len(st.session_state.inventory[st.session_state.inventory["Stock Count"] < 5])
         
         col1, col2, col3 = st.columns(3)
-        col1.metric("සම්පූර්ණ භාණ්ඩ වර්ග (Total Items)", total_items)
-        col2.metric("අඩු තොග සහිත භාණ්ඩ (Low Stock Items)", low_stock_count, delta_color="inverse")
-        col3.metric("පද්ධති තත්ත්වය (System Status)", "Active")
+        col1.metric("සම්පූර්ණ භාණ්ඩ වර්ග", total_items)
+        col2.metric("අඩු තොග සහිත භාණ්ඩ", low_stock_count)
+        col3.metric("තත්ත්වය", "Active")
         
         if low_stock_count > 0:
-            st.warning(f"⚠️ **අනතුරු ඇඟවීමයි:** තොග ප්‍රමාණය 5ට වඩා අඩු භාණ්ඩ {low_stock_count}ක් පවතී. කරුණාකර තොග නැවත පිරවීමට කටයුතු කරන්න!")
+            st.warning(f"⚠️ තොග ප්‍රමාණය 5ට වඩා අඩු භාණ්ඩ {low_stock_count}ක් පවතී!")
         
-        # Section 1: Add New Item
-        st.markdown("### ➕ 1. නව භාණ්ඩයක් ඇතුළත් කිරීම (Add New Item)")
+        st.markdown("### ➕ නව භාණ්ඩයක් ඇතුළත් කිරීම")
         with st.form("add_item_form", clear_on_submit=True):
-            col_a, col_b = st.columns(2)
-            with col_a:
-                new_name = st.text_input("භාණ්ඩයේ නම (Item Name)")
-                new_sec = st.selectbox("අදාළ අංශය (Section)", ["Grocery", "Bakery", "Pharmacy"])
-            with col_b:
-                new_stock = st.number_input("තොග ප්‍රමාණය (Stock Quantity)", min_value=0, value=10, step=1)
-                new_price = st.number_input("එකක මිල - LKR (Unit Price)", min_value=0.0, value=100.0, step=10.0)
-            
-            submit_btn = st.form_submit_button("➕ භාණ්ඩය පද්ධතියට එකතු කරන්න")
-            
-            if submit_btn:
-                if new_name.strip() != "":
-                    new_item = pd.DataFrame({
-                        "Item Name": [new_name],
-                        "Section": [new_sec],
-                        "Stock Count": [int(new_stock)],
-                        "Price (LKR)": [float(new_price)]
-                    })
-                    st.session_state.inventory = pd.concat([st.session_state.inventory, new_item], ignore_index=True)
-                    st.success(f"✅ '{new_name}' සාර්ථකව පද්ධතියට එකතු කරන ලදී!")
-                    st.rerun()
-                else:
-                    st.error("කරුණාකර භාණ්ඩයේ නම ඇතුළත් කරන්න.")
-        
-        # Section 2: Inventory Management Table
-        st.markdown("---")
-        st.markdown("### 📦 2. වත්මන් තොග වාර්තාව සහ පාලනය (Inventory Management)")
-        
-        def highlight_low_stock(row):
-            if row['Stock Count'] < 5:
-                return ['background-color: #ffcccc; color: red; font-weight: bold;'] * len(row)
-            return [''] * len(row)
-        
-        st.dataframe(
-            st.session_state.inventory.style.apply(highlight_low_stock, axis=1),
-            use_container_width=True
-        )
+            new_name = st.text_input("භාණ්ඩයේ නම")
+            new_sec = st.selectbox("අංශය", ["Grocery", "Bakery", "Pharmacy"])
+            new_stock = st.number_input("තොග ප්‍රමාණය", min_value=0, value=10)
+            new_price = st.number_input("මිල (LKR)", min_value=0.0, value=100.0)
+            if st.form_submit_button("ඇතුළත් කරන්න") and new_name:
+                new_row = pd.DataFrame({"Item Name": [new_name], "Section": [new_sec], "Stock Count": [new_stock], "Price (LKR)": [new_price]})
+                st.session_state.inventory = pd.concat([st.session_state.inventory, new_row], ignore_index=True)
+                st.success(f"'{new_name}' එකතු කරන ලදී!")
+                st.rerun()
+                
+        st.markdown("### 📦 වත්මන් තොග වාර්තාව")
+        st.dataframe(st.session_state.inventory, use_container_width=True)
 
-# 6. Customer View & Online Ordering + Free Delivery Checker
+# 6. Customer View with GPS Location Checker
 else:
     st.sidebar.markdown("---")
     st.sidebar.header("📍 Navigation & Controls")
     selected_section = st.sidebar.selectbox("Section එක තෝරන්න:", ["Overview (සියල්ල)", "Grocery Section", "Bakery Items", "Pharmacy & Health"])
     
-    st.sidebar.subheader("⚡ Shortest Path (කෙටිම මාර්ගය)")
-    item_to_find = st.sidebar.selectbox("භාණ්ඩයක් තෝරන්න:", st.session_state.inventory["Item Name"].tolist())
-    find_path_btn = st.sidebar.button("මාර්ගය සොයන්න")
-    
     st.markdown(f"### 📍 දැනට නරඹන්නේ: {selected_section}")
     
-    if find_path_btn:
-        st.success(f"🚀 **{item_to_find}** වෙත ළඟ වීමට කෙටිම මාර්ගය: ප්‍රධාන පිවිසුමේ සිට කෙළින්ම ගොස් අදාළ {selected_section} අංශයට පිවිසෙන්න.")
-    
-    # Filtering items by section
+    # Filtering items
     if selected_section == "Grocery Section":
         filtered_df = st.session_state.inventory[st.session_state.inventory["Section"] == "Grocery"]
     elif selected_section == "Bakery Items":
@@ -163,52 +108,107 @@ else:
     else:
         filtered_df = st.session_state.inventory
         
-    st.markdown("#### 📋 පවතින භාණ්ඩ සහ Online ඇණවුම් කිරීම (Online Order & Cart)")
-    
-    # Allow customer to select an item to add to cart
-    col_c1, col_c2 = st.columns([2, 1])
-    with col_c1:
-        selected_item_to_buy = st.selectbox("කරත්තයට එකතු කිරීමට භාණ්ඩයක් තෝරන්න:", filtered_df["Item Name"].tolist())
-    with col_c2:
-        qty = st.number_input("ප්‍රමාණය", min_value=1, value=1, step=1)
-    
-    if st.button("🛒 කරත්තයට එකතු කරන්න (Add to Cart)"):
-        item_row = st.session_state.inventory[st.session_state.inventory["Item Name"] == selected_item_to_buy].iloc[0]
-        price = item_row["Price (LKR)"]
-        st.session_state.cart.append({"Item": selected_item_to_buy, "Qty": qty, "Price": price, "Total": price * qty})
-        st.success(f"✅ '{selected_item_to_buy}' කරත්තයට එකතු කරන ලදී!")
+    st.markdown("#### 📋 ඇණවුම් කිරීම සඳහා භාණ්ඩ තෝරන්න:")
+    c1, c2 = st.columns([2, 1])
+    with c1:
+        sel_item = st.selectbox("භාණ්ඩය:", filtered_df["Item Name"].tolist())
+    with c2:
+        sel_qty = st.number_input("ප්‍රමාණය", min_value=1, value=1)
+        
+    if st.button("🛒 කරත්තයට එකතු කරන්න"):
+        row = st.session_state.inventory[st.session_state.inventory["Item Name"] == sel_item].iloc[0]
+        price = row["Price (LKR)"]
+        st.session_state.cart.append({"Item": sel_item, "Qty": sel_qty, "Price": price, "Total": price * sel_qty})
+        st.success(f"'{sel_item}' කරත්තයට එකතු විය!")
 
-    # Display Cart & Checkout with Free Delivery Check
     if len(st.session_state.cart) > 0:
         st.markdown("---")
-        st.markdown("### 🛍️ ඔබේ ඇණවුම් කරත්තය (Shopping Cart)")
+        st.markdown("### 🛍️ ඔබේ කරත්තය (Cart)")
         cart_df = pd.DataFrame(st.session_state.cart)
         st.table(cart_df)
-        
         total_bill = cart_df["Total"].sum()
-        st.markdown(f"#### 💰 **මුළු එකතුව (Total Amount): LKR {total_bill:.2f}**")
+        st.markdown(f"#### 💰 භාණ්ඩවල මුළු මිල: LKR {total_bill:.2f}")
         
-        st.markdown("#### 🚚 Delivery සහ 3km නොමිලේ බෙදාහැරීමේ පරීක්ෂාව (Free Delivery Checker)")
-        customer_distance = st.number_input("සුපිරි වෙළඳපොළේ සිට ඔබේ නිවසට ඇති දුර (Kilometers):", min_value=0.0, value=2.0, step=0.5)
+        st.markdown("### 🛰️ ස්වයංක්‍රීය GPS මඟින් Delivery දුර පරීක්ෂා කිරීම")
+        st.info("💡 පහත බොත්තම ක්ලික් කර ඔබේ ජංගම දුරකථනයේ GPS පිහිටීම ලබා දෙන්න.")
+
+        # JavaScript Geolocation Component
+        location_code = """
+        <div style="padding: 10px; background-color: #f0f2f6; border-radius: 5px; text-align: center;">
+            <button onclick="getLocation()" style="background-color: #ff4b4b; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold;">📍 මගේ GPS පිහිටීම ලබා ගන්න</button>
+            <p id="demo" style="margin-top: 10px; font-weight: bold;"></p>
+        </div>
+        
+        <script>
+        function getLocation() {
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(showPosition, showError);
+            } else {
+                document.getElementById("demo").innerHTML = "Geolocation මෙම බ්‍රව්සරය මඟින් ක්‍රියාත්මක නොවේ.";
+            }
+        }
+
+        function showPosition(position) {
+            let lat = position.coords.latitude;
+            let lon = position.coords.longitude;
+            
+            let storeLat = 7.2906; 
+            let storeLon = 80.6337;
+            
+            let R = 6371; 
+            let dLat = deg2rad(lat - storeLat);
+            let dLon = deg2rad(lon - storeLon);
+            let a = 
+                Math.sin(dLat/2) * Math.sin(dLat/2) +
+                Math.cos(deg2rad(storeLat)) * Math.cos(deg2rad(lat)) * 
+                Math.sin(dLon/2) * Math.sin(dLon/2); 
+            let c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)); 
+            let distance = R * c; 
+            
+            document.getElementById("demo").innerHTML = "📍 ඔබේ නිවස සහ සුපිරි වෙළඳපොළ අතර දුර: " + distance.toFixed(2) + " km";
+        }
+
+        function showError(error) {
+            switch(error.code) {
+                case error.PERMISSION_DENIED:
+                    document.getElementById("demo").innerHTML = "⚠️ පරිශීලකයා Location අවසරය ප්‍රතික්ෂේප කළේය.";
+                    break;
+                case error.POSITION_UNAVAILABLE:
+                    document.getElementById("demo").innerHTML = "⚠️ Location තොරතුරු ලබාගත නොහැක.";
+                    break;
+                case error.TIMEOUT:
+                    document.getElementById("demo").innerHTML = "⚠️ ඉල්ලීම කල් ඉකුත් විය.";
+                    break;
+            }
+        }
+
+        function deg2rad(deg) {
+            return deg * (Math.PI / 180);
+        }
+        </script>
+        """
+        components.html(location_code, height=120)
+        
+        customer_distance = st.number_input("ගණනය වූ දුර (km) මෙහි සටහන් කරන්න:", min_value=0.0, value=2.0, step=0.1)
         
         if customer_distance <= 3.0:
-            st.success("🎉 සුබ පැතුම්! ඔබ සාප්පුවේ සිට කිලෝමීටර් 3ක අරයක් තුළ (Radius) සිටින නිසා **නොමිලේ බෙදාහැරීම (Free Delivery)** හිමි වේ!")
+            st.success("🎉 ඔබ කිලෝමීටර් 3ක අරය තුළ සිටින නිසා **නොමිලේ බෙදාහැරීම (Free Delivery)** හිමි වේ!")
             final_delivery_fee = 0.0
         else:
-            extra_km = customer_distance - 3.0
-            delivery_fee = 150.0 + (extra_km * 50.0) # Example delivery calculation beyond 3km
-            st.warning(f"⚠️ ඔබ කිලෝමීටර් 3 සීමාවෙන් ඔබ්බෙහි සිටී (දුර: {customer_distance} km). බෙදාහැරීමේ ගාස්තුව: LKR {delivery_fee:.2f}")
-            final_delivery_fee = delivery_fee
+            final_delivery_fee = 150.0 + ((customer_distance - 3.0) * 50.0)
+            st.warning(f"⚠️ ඔබ කිලෝමීටර් 3 සීමාවෙන් ඔබ්බෙහි සිටී. බෙදාහැරීමේ ගාස්තුව: LKR {final_delivery_fee:.2f}")
             
         grand_total = total_bill + final_delivery_fee
-        st.info(ක්ෂණික ගෙවීම් සාරාංශය: භාණ්ඩවල මිල = LKR {total_bill:.2f} | ඩෙලිවරි ගාස්තුව = LKR {final_delivery_fee:.2f} | **මුළු ගෙවිය යුතු මුදල = LKR {grand_total:.2f}**)
         
-        if st.button("✅ ඇණවුම තහවුරු කරන්න (Place Order)"):
+        # Fixed syntax error line using proper f-string and quoted text
+        st.info(f"ක්ෂණික ගෙවීම් සාරාංශය: භාණ්ඩවල මිල = LKR {total_bill:.2f} | ඩෙලිවරි ගාස්තුව = LKR {final_delivery_fee:.2f} | **මුළු ගෙවිය යුතු මුදල = LKR {grand_total:.2f}**")
+        
+        if st.button("✅ ඇණවුම තහවුරු කරන්න"):
             st.balloons()
-            st.success("🎉 ඔබේ ඇණවුම සාර්ථකව යොමු කරන ලදී! ගබඩා හිමියා විසින් එය සූදානම් කරමින් පවතී.")
-            st.session_state.cart = [] # Clear cart after order
+            st.success("🎉 ඇණවුම සාර්ථකයි! ගබඩා හිමියා වෙත යවන ලදී.")
+            st.session_state.cart = []
     else:
-        st.info("🛒 ඔබේ කරත්තය හිස්ය. ඉහතින් භාණ්ඩ තෝරා කරත්තයට එකතු කරගන්න.")
+        st.info("🛒 ඔබේ කරත්තය හිස්ය.")
 
     st.markdown("#### 📋 පවතින භාණ්ඩ ලැයිස්තුව:")
     st.table(filtered_df[["Item Name", "Section", "Price (LKR)"]])
