@@ -1,4 +1,21 @@
 import streamlit as st
+import streamlit.components.v1 as components
+
+# PWA setup for mobile installation
+pwa_header = """
+<link rel="manifest" href="/app/static/manifest.json">
+<script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('/sw.js')
+        .then(reg => console.log('Service Worker registered!'))
+        .catch(err => console.log('Service Worker registration failed: ', err));
+    });
+  }
+</script>
+"""
+components.html(pwa_header, height=0)
+import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
 
