@@ -1,0 +1,15 @@
+{
+  "name": "3D Supermarket Navigator",
+  "short_name": "Supermarket 3D",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#0083B8",
+  "icons": [
+    {
+      "src": "https://img.icons8.com/color/512/shopping-cart.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
