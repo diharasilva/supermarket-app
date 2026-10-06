@@ -129,7 +129,7 @@ else:
         total_bill = cart_df["Total"].sum()
         st.markdown(f"#### 💰 භාණ්ඩවල මුළු මිල: LKR {total_bill:.2f}")
         
-        st.markdown("### 🛰️ ස්වයංක්‍රීය GPS මඟින් Delivery දුර පරීක්ෂා කිරීම")
+        st.markdown("### 🛰️ දුර පරීක්ෂා කිරීම")
         st.info("💡 පහත බොත්තම ක්ලික් කර ඔබේ ජංගම දුරකථනයේ GPS පිහිටීම ලබා දෙන්න.")
 
         # JavaScript Geolocation Component
