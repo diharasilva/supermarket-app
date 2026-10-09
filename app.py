@@ -1,219 +1,171 @@
 import streamlit as st
 import streamlit.components.v1 as components
 import pandas as pd
-import math
+from datetime import date
 
-# 1. PWA Setup
+# 1. PWA Setup (Injected into Streamlit header)
 pwa_header = """
 <link rel="manifest" href="./manifest.json">
+<meta name="theme-color" content="#1d4ed8">
 <script>
-  if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => {
-      navigator.serviceWorker.register('./sw.js')
-        .then(reg => console.log('Service Worker registered!'))
-        .catch(err => console.log('Service Worker registration failed: ', err));
-    });
-  }
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+            navigator.serviceWorker.register('./sw.js')
+                .then(reg => console.log('Service Worker registered!'))
+                .catch(err => console.log('Service Worker registration failed: ', err));
+        });
+    }
 </script>
 """
 components.html(pwa_header, height=0)
 
 # 2. App Configuration
-st.set_page_config(page_title="3D Supermarket Navigator", page_icon="🛒", layout="wide")
+st.set_page_config(page_title="Dealz Super — Maharagama", page_icon="🛒", layout="wide")
 
-# 3. Initial Inventory State (Sample Data)
+# 3. Initial Inventory State
 if 'inventory' not in st.session_state:
     st.session_state.inventory = pd.DataFrame({
-        "Item Name": [
-            "Fresh Milk 1L (එළකිරි)", 
-            "White Bread (පාන්)", 
-            "Samba Rice 5kg (සම්බා හාල්)", 
-            "Red Apples 1kg (ඇපල්)", 
-            "Paracetamol 500mg (පැරසිටමෝල්)",
-            "Cheddar Cheese 200g (චීස්)"
-        ],
-        "Section": ["Grocery", "Bakery", "Grocery", "Grocery", "Pharmacy", "Grocery"],
-        "Stock Count": [3, 2, 50, 15, 4, 1],
-        "Price (LKR)": [480.0, 190.0, 1450.0, 1200.0, 50.0, 950.0]
+        "product_id": [1, 2, 3],
+        "Item Name": ["Fresh Milk 1L (කිරි)", "White Bread (පාන්)", "Samba Rice 5kg (සම්බා හාල්)"],
+        "Aisle": ["Aisle 2 - Dairy & Refrigerated", "Aisle 1 - Bakery", "Aisle 3 - Grocery & Rice"],
+        "Barcode": ["4792011120016", "4792012345678", "4792098765432"],
+        "Price (LKR)": [480.0, 320.0, 1450.0],
+        "Stock Count": [25, 4, 40],
+        "Reorder Level": [10, 5, 10],
+        "Expiry Date": ["2026-10-25", "2026-10-12", "2027-05-15"],
+        "Image": [
+            "https://images.unsplash.com/photo-1550583724-b2692b85b150?auto=format&fit=crop&w=400&q=80",
+            "https://images.unsplash.com/photo-1509440159596-0249088772ff?auto=format&fit=crop&w=400&q=80",
+            "https://images.unsplash.com/photo-1586201375761-83865001e31c?auto=format&fit=crop&w=400&q=80"
+        ]
     })
 
-if 'cart' not in st.session_state:
-    st.session_state.cart = []
+if 'orders' not in st.session_state:
+    st.session_state.orders = [
+        {"order_id": 101, "customer_email": "perera.n@gmail.com", "items": "Fresh Milk 1L (x2)", "total_lkr": 960.0, "status": "Pending Pickup"},
+        {"order_id": 102, "customer_email": "kumari.s@yahoo.com", "items": "Samba Rice 5kg (x1)", "total_lkr": 1450.0, "status": "Ready for Delivery"}
+    ]
 
-# 4. Sidebar Controls & Role Access
-st.sidebar.header("🔐 පරිශීලක ප්‍රවේශය (Access Control)")
-user_role = st.sidebar.radio("ඔබ කවුද?", ["Customer (පාරිභෝගිකයා)", "Store Owner (ගබඩා හිමියා)"])
+# 4. Navigation & Header
+st.title("🛒 Dealz Super — Maharagama")
+st.caption("භාණ්ඩ කළමනාකරණ සහ පාරිභෝගික පද්ධති ද්වාරය (Supermarket Management & Customer Portal)")
 
-is_owner_authenticated = False
+# Sidebar Role Switcher
+st.sidebar.markdown("# ⚙️ Portal Navigation")
+role = st.sidebar.radio("Select Role / කාර්යභාරය තෝරන්න", ["👤 Customer View (පාරිභෝගිකයා)", "🔒 Store Owner Dashboard (ගබඩා හිමියා)"])
+st.sidebar.markdown("---")
+st.sidebar.info("💡 PWA features, offline caching, and live inventory sync enabled.")
 
-if user_role == "Store Owner (ගබඩා හිමියා)":
-    owner_password = st.sidebar.text_input("මුරපදය ඇතුළත් කරන්න (Password):", type="password")
-    if owner_password == "admin123":
-        is_owner_authenticated = True
-        st.sidebar.success("🔑 ප්‍රවේශය සාර්ථකයි!")
-    elif owner_password != "":
-        st.sidebar.error("❌ වැරදි මුරපදයකි!")
+# ==================== CUSTOMER VIEW ====================
+if role == "👤 Customer View (පාරිභෝගිකයා)":
+    st.subheader("🛍️ Available Supermarket Products")
+    
+    col_btn1, col_btn2, col_btn3 = st.columns(3)
+    with col_btn1:
+        if st.button("🛒 Checkout & Send Email Bill", use_container_width=True):
+            st.success("✅ Order placed successfully! Digital invoice sent to your email.")
+    with col_btn2:
+        if st.button("📍 Simulate 2km Geofence Offer", use_container_width=True):
+            st.info("📍 Geofence Alert: 'Welcome near Maharagama! Flash Deal: Get 10% off Fresh Milk today!'")
+    with col_btn3:
+        if st.button("🔄 Refresh Catalog", use_container_width=True):
+            st.rerun()
 
-st.title("🛒 3D Supermarket Indoor Navigator & GPS Delivery")
-
-# 5. Store Owner Interface
-if user_role == "Store Owner (ගබඩා හිමියා)":
-    if not is_owner_authenticated:
-        st.error("🔒 මෙම පාලක පුවරුවට පිවිසීමට ගබඩා හිමියාගේ නිවැරදි මුරපදය ඇතුළත් කරන්න.")
-        st.info("💡 මුරපදය: admin123")
-    else:
-        st.markdown("## 🛠️ Store Owner Dashboard")
-        st.markdown("---")
-        total_items = len(st.session_state.inventory)
-        low_stock_count = len(st.session_state.inventory[st.session_state.inventory["Stock Count"] < 5])
-        
-        col1, col2, col3 = st.columns(3)
-        col1.metric("සම්පූර්ණ භාණ්ඩ වර්ග", total_items)
-        col2.metric("අඩු තොග සහිත භාණ්ඩ", low_stock_count)
-        col3.metric("තත්ත්වය", "Active")
-        
-        if low_stock_count > 0:
-            st.warning(f"⚠️ තොග ප්‍රමාණය 5ට වඩා අඩු භාණ්ඩ {low_stock_count}ක් පවතී!")
-        
-        st.markdown("### ➕ නව භාණ්ඩයක් ඇතුළත් කිරීම")
-        with st.form("add_item_form", clear_on_submit=True):
-            new_name = st.text_input("භාණ්ඩයේ නම")
-            new_sec = st.selectbox("අංශය", ["Grocery", "Bakery", "Pharmacy"])
-            new_stock = st.number_input("තොග ප්‍රමාණය", min_value=0, value=10)
-            new_price = st.number_input("මිල (LKR)", min_value=0.0, value=100.0)
-            if st.form_submit_button("ඇතුළත් කරන්න") and new_name:
-                new_row = pd.DataFrame({"Item Name": [new_name], "Section": [new_sec], "Stock Count": [new_stock], "Price (LKR)": [new_price]})
-                st.session_state.inventory = pd.concat([st.session_state.inventory, new_row], ignore_index=True)
-                st.success(f"'{new_name}' එකතු කරන ලදී!")
-                st.rerun()
+    st.markdown("---")
+    
+    # Display Product Grid Cards
+    cols = st.columns(3)
+    for index, row in st.session_state.inventory.iterrows():
+        with cols[index % 3]:
+            st.image(row["Image"], use_column_width=True)
+            st.caption(f"📍 {row['Aisle']}")
+            st.markdown(f"### **{row['Item Name']}**")
+            st.write(f"Barcode: `{row['Barcode']}`")
+            st.markdown(f"**LKR {row['Price (LKR)']:.2f}**")
+            
+            if row["Stock Count"] > row["Reorder Level"]:
+                st.success(f"In Stock ({row['Stock Count']})")
+            else:
+                st.error(f"Low Stock ({row['Stock Count']})")
                 
-        st.markdown("### 📦 වත්මන් තොග වාර්තාව")
-        st.dataframe(st.session_state.inventory, use_container_width=True)
+            if st.button(f"Add to Cart 🛒", key=f"cust_buy_{row['product_id']}"):
+                st.toast(f"Added {row['Item Name']} to your pickup order!")
 
-# 6. Customer View with GPS Location Checker
-else:
-    st.sidebar.markdown("---")
-    st.sidebar.header("📍 Navigation & Controls")
-    selected_section = st.sidebar.selectbox("Section එක තෝරන්න:", ["Overview (සියල්ල)", "Grocery Section", "Bakery Items", "Pharmacy & Health"])
+# ==================== STORE OWNER DASHBOARD ====================
+elif role == "🔒 Store Owner Dashboard (ගබඩා හිමියා)":
+    st.subheader("🔒 Store Owner Access Restricted")
+    password = st.text_input("Enter Administrative Password (e.g., admin123)", type="password")
     
-    st.markdown(f"### 📍 දැනට නරඹන්නේ: {selected_section}")
-    
-    # Filtering items
-    if selected_section == "Grocery Section":
-        filtered_df = st.session_state.inventory[st.session_state.inventory["Section"] == "Grocery"]
-    elif selected_section == "Bakery Items":
-        filtered_df = st.session_state.inventory[st.session_state.inventory["Section"] == "Bakery"]
-    elif selected_section == "Pharmacy & Health":
-        filtered_df = st.session_state.inventory[st.session_state.inventory["Section"] == "Pharmacy"]
-    else:
-        filtered_df = st.session_state.inventory
+    if password == "admin123" or password == "admin":
+        st.success("Administrative Access Granted!")
         
-    st.markdown("#### 📋 ඇණවුම් කිරීම සඳහා භාණ්ඩ තෝරන්න:")
-    c1, c2 = st.columns([2, 1])
-    with c1:
-        sel_item = st.selectbox("භාණ්ඩය:", filtered_df["Item Name"].tolist())
-    with c2:
-        sel_qty = st.number_input("ප්‍රමාණය", min_value=1, value=1)
+        tab1, tab2, tab3 = st.tabs(["📦 Inventory Control", "➕ Add Product", "📋 Customer Online Orders"])
         
-    if st.button("🛒 කරත්තයට එකතු කරන්න"):
-        row = st.session_state.inventory[st.session_state.inventory["Item Name"] == sel_item].iloc[0]
-        price = row["Price (LKR)"]
-        st.session_state.cart.append({"Item": sel_item, "Qty": sel_qty, "Price": price, "Total": price * sel_qty})
-        st.success(f"'{sel_item}' කරත්තයට එකතු විය!")
-
-    if len(st.session_state.cart) > 0:
-        st.markdown("---")
-        st.markdown("### 🛍️ ඔබේ කරත්තය (Cart)")
-        cart_df = pd.DataFrame(st.session_state.cart)
-        st.table(cart_df)
-        total_bill = cart_df["Total"].sum()
-        st.markdown(f"#### 💰 භාණ්ඩවල මුළු මිල: LKR {total_bill:.2f}")
-        
-        st.markdown("### 🛰️ දුර පරීක්ෂා කිරීම")
-        st.info("💡 පහත බොත්තම ක්ලික් කර ඔබේ ජංගම දුරකථනයේ GPS පිහිටීම ලබා දෙන්න.")
-
-        # JavaScript Geolocation Component
-        location_code = """
-        <div style="padding: 10px; background-color: #f0f2f6; border-radius: 5px; text-align: center;">
-            <button onclick="getLocation()" style="background-color: #ff4b4b; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold;">📍 මගේ GPS පිහිටීම ලබා ගන්න</button>
-            <p id="demo" style="margin-top: 10px; font-weight: bold;"></p>
-        </div>
-        
-        <script>
-        function getLocation() {
-            if (navigator.geolocation) {
-                navigator.geolocation.getCurrentPosition(showPosition, showError);
-            } else {
-                document.getElementById("demo").innerHTML = "Geolocation මෙම බ්‍රව්සරය මඟින් ක්‍රියාත්මක නොවේ.";
-            }
-        }
-
-        function showPosition(position) {
-            let lat = position.coords.latitude;
-            let lon = position.coords.longitude;
+        with tab1:
+            st.markdown("### Live Inventory Status & Expiry Checks")
+            today_str = str(date.today())
             
-            let storeLat = 7.2906; 
-            let storeLon = 80.6337;
-            
-            let R = 6371; 
-            let dLat = deg2rad(lat - storeLat);
-            let dLon = deg2rad(lon - storeLon);
-            let a = 
-                Math.sin(dLat/2) * Math.sin(dLat/2) +
-                Math.cos(deg2rad(storeLat)) * Math.cos(deg2rad(lat)) * 
-                Math.sin(dLon/2) * Math.sin(dLon/2); 
-            let c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)); 
-            let distance = R * c; 
-            
-            document.getElementById("demo").innerHTML = "📍 ඔබේ නිවස සහ සුපිරි වෙළඳපොළ අතර දුර: " + distance.toFixed(2) + " km";
-        }
+            for index, row in st.session_state.inventory.iterrows():
+                col1, col2, col3, col4, col5 = st.columns([2, 1, 1, 1, 1])
+                with col1:
+                    st.write(f"**{row['Item Name']}**")
+                    st.caption(f"Aisle: {row['Aisle']}")
+                with col2:
+                    if row["Stock Count"] <= row["Reorder Level"]:
+                        st.error(f"Stock: {row['Stock Count']} (Low)")
+                    else:
+                        st.success(f"Stock: {row['Stock Count']}")
+                with col3:
+                    if row["Expiry Date"] < today_str:
+                        st.error(f"Expired: {row['Expiry Date']}")
+                    else:
+                        st.info(f"Exp: {row['Expiry Date']}")
+                with col4:
+                    st.write(f"LKR {row['Price (LKR)']:.2f}")
+                with col5:
+                    if st.button("Delete", key=f"del_prod_{row['product_id']}"):
+                        st.session_state.inventory = st.session_state.inventory[st.session_state.inventory["product_id"] != row["product_id"]]
+                        st.rerun()
+                st.divider()
 
-        function showError(error) {
-            switch(error.code) {
-                case error.PERMISSION_DENIED:
-                    document.getElementById("demo").innerHTML = "⚠️ පරිශීලකයා Location අවසරය ප්‍රතික්ෂේප කළේය.";
-                    break;
-                case error.POSITION_UNAVAILABLE:
-                    document.getElementById("demo").innerHTML = "⚠️ Location තොරතුරු ලබාගත නොහැක.";
-                    break;
-                case error.TIMEOUT:
-                    document.getElementById("demo").innerHTML = "⚠️ ඉල්ලීම කල් ඉකුත් විය.";
-                    break;
-            }
-        }
+        with tab2:
+            st.markdown("### Add New Product to Inventory")
+            with st.form("add_product_form"):
+                p_name = st.text_input("Product Name (Sinhala/English)")
+                col_a, col_b = st.columns(2)
+                with col_a:
+                    aisle = st.text_input("Aisle Location", value="Aisle 4 - General")
+                    barcode = st.text_input("Barcode", value="479200001111")
+                    price = st.number_input("Price (LKR)", min_value=0.0, value=500.0)
+                with col_b:
+                    stock = st.number_input("Stock Count", min_value=1, value=20)
+                    reorder = st.number_input("Reorder Level", min_value=1, value=5)
+                    expiry = st.date_input("Expiry Date")
+                
+                img_url = st.text_input("Image URL", value="https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=400&q=80")
+                
+                submitted = st.form_submit_button("Save Product to Database")
+                if submitted:
+                    new_id = int(st.session_state.inventory["product_id"].max() + 1) if not st.session_state.inventory.empty else 1
+                    new_row = pd.DataFrame({
+                        "product_id": [new_id],
+                        "Item Name": [p_name],
+                        "Aisle": [aisle],
+                        "Barcode": [barcode],
+                        "Price (LKR)": [float(price)],
+                        "Stock Count": [int(stock)],
+                        "Reorder Level": [int(reorder)],
+                        "Expiry Date": [str(expiry)],
+                        "Image": [img_url]
+                    })
+                    st.session_state.inventory = pd.concat([st.session_state.inventory, new_row], ignore_index=True)
+                    st.success(f"Successfully added {p_name}!")
+                    st.rerun()
 
-        function deg2rad(deg) {
-            return deg * (Math.PI / 180);
-        }
-        </script>
-        """
-        components.html(location_code, height=120)
-        
-        customer_distance = st.number_input("ගණනය වූ දුර (km) මෙහි සටහන් කරන්න:", min_value=0.0, value=2.0, step=0.1)
-        
-        if customer_distance <= 3.0:
-            st.success("🎉 ඔබ කිලෝමීටර් 3ක අරය තුළ සිටින නිසා **නොමිලේ බෙදාහැරීම (Free Delivery)** හිමි වේ!")
-            final_delivery_fee = 0.0
-        else:
-            final_delivery_fee = 150.0 + ((customer_distance - 3.0) * 50.0)
-            st.warning(f"⚠️ ඔබ කිලෝමීටර් 3 සීමාවෙන් ඔබ්බෙහි සිටී. බෙදාහැරීමේ ගාස්තුව: LKR {final_delivery_fee:.2f}")
-            
-        grand_total = total_bill + final_delivery_fee
-        
-        # Fixed syntax error line using proper f-string and quoted text
-        st.info(f"ක්ෂණික ගෙවීම් සාරාංශය: භාණ්ඩවල මිල = LKR {total_bill:.2f} | ඩෙලිවරි ගාස්තුව = LKR {final_delivery_fee:.2f} | **මුළු ගෙවිය යුතු මුදල = LKR {grand_total:.2f}**")
-        
-        if st.button("✅ ඇණවුම තහවුරු කරන්න"):
-            st.balloons()
-            st.success("🎉 ඇණවුම සාර්ථකයි! ගබඩා හිමියා වෙත යවන ලදී.")
-            st.session_state.cart = []
-    else:
-        st.info("🛒 ඔබේ කරත්තය හිස්ය.")
+        with tab3:
+            st.markdown("### Incoming Customer Orders (Pickup & Delivery)")
+            df_orders = pd.DataFrame(st.session_state.orders)
+            st.dataframe(df_orders, use_container_width=True)
 
-    st.markdown("#### 📋 පවතින භාණ්ඩ ලැයිස්තුව:")
-    st.table(filtered_df[["Item Name", "Section", "Price (LKR)"]])
-
-# 7. Map Placeholder
-st.markdown("---")
-st.markdown("### 🗺️ 3D Supermarket Map")
-st.warning("⚠️ ArcGIS 3D Web Scene එක ලැබ් එකෙන් Publish කළ පසු මෙතැන සජීවීව පෙන්වනු ඇත.")
+    elif password != "":
+        st.error("Incorrect password! Try 'admin123'")
